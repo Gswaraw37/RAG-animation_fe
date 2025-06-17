@@ -1,9 +1,15 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
+import { Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import { useSpeech } from "../hooks/useSpeech";
+import SpeechBubble from "./SpeechBubble";
 
 export const ChatInterface = ({ hidden, ...props }) => {
   const input = useRef();
   const [inputText, setInputText] = useState("");
+  const [showSpeechBubble, setShowSpeechBubble] = useState(false);
+  const [speechBubbleText, setSpeechBubbleText] = useState("");
+  const [bubbleTimer, setBubbleTimer] = useState(null);
+
   const {
     tts,
     loading,
@@ -14,15 +20,58 @@ export const ChatInterface = ({ hidden, ...props }) => {
     sessionUUID,
   } = useSpeech();
 
-  const sendMessage = () => {
+  // Show speech bubble when message is available
+  useEffect(() => {
+    if (message && message.text) {
+      console.log("Showing speech bubble for message:", message.text);
+      setSpeechBubbleText(message.text);
+      setShowSpeechBubble(true);
+
+      // Clear any existing timer
+      if (bubbleTimer) {
+        clearTimeout(bubbleTimer);
+      }
+
+      // Set timer to hide bubble after 8 seconds (atau lebih lama)
+      const timer = setTimeout(() => {
+        setShowSpeechBubble(false);
+        setSpeechBubbleText("");
+      }, 100000); // 8 detik, bisa diubah sesuai keinginan
+
+      setBubbleTimer(timer);
+    }
+  }, [message]);
+
+  // Hide bubble when user sends new message
+  const handleSendMessage = () => {
     const text = inputText.trim();
     if (!loading && !message && text) {
+      // Hide current bubble when sending new message
+      setShowSpeechBubble(false);
+      setSpeechBubbleText("");
+      if (bubbleTimer) {
+        clearTimeout(bubbleTimer);
+      }
+
       tts(text);
       setInputText("");
       if (input.current) {
         input.current.value = "";
       }
     }
+  };
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (bubbleTimer) {
+        clearTimeout(bubbleTimer);
+      }
+    };
+  }, [bubbleTimer]);
+
+  const sendMessage = () => {
+    handleSendMessage();
   };
 
   const handleKeyPress = (e) => {
@@ -40,6 +89,12 @@ export const ChatInterface = ({ hidden, ...props }) => {
     } else {
       startRecording();
     }
+  };
+
+  const onSpeechBubbleComplete = () => {
+    // Called when speech bubble typing is complete
+    console.log("Speech bubble typing completed");
+    // Don't hide immediately, let the timer handle it
   };
 
   if (hidden) {
@@ -67,7 +122,15 @@ export const ChatInterface = ({ hidden, ...props }) => {
         )}
       </div>
 
-      {/* Status indicators */}
+      <div className="absolute top-1/3 right-8 pointer-events-none z-30">
+        <SpeechBubble
+          message={speechBubbleText}
+          isVisible={showSpeechBubble && !!speechBubbleText}
+          position="left"
+          onTypingComplete={onSpeechBubbleComplete}
+        />
+      </div>
+
       <div className="w-full flex flex-col items-end justify-center gap-4">
         {loading && (
           <div className="backdrop-blur-md bg-blue-500 bg-opacity-80 text-white p-3 rounded-lg pointer-events-auto">
@@ -109,25 +172,12 @@ export const ChatInterface = ({ hidden, ...props }) => {
               : "Klik untuk mulai merekam"
           }
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="w-6 h-6"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
-            />
-          </svg>
+          {recording ? <MicOff size={20} /> : <Mic size={20} />}
         </button>
 
         {/* Text input */}
         <textarea
-          className="flex-1 placeholder:text-gray-800 placeholder:italic p-4 rounded-md bg-opacity-50 bg-white backdrop-blur-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-opacity-70 transition-all duration-200"
+          className="flex-1 placeholder:text-gray-800 placeholder:italic p-1 rounded-md bg-opacity-50 bg-white backdrop-blur-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-opacity-70 transition-all duration-200"
           placeholder="Ketik pertanyaan tentang gizi dan kesehatan..."
           ref={input}
           value={inputText}
