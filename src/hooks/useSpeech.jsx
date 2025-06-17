@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-const backendUrl = "http://localhost:3000";
+const backendUrl = "http://localhost:5000";
 
 const SpeechContext = createContext();
 
@@ -8,8 +8,9 @@ export const SpeechProvider = ({ children }) => {
   const [recording, setRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState();
+  const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [sessionUUID, setSessionUUID] = useState(null);
 
   let chunks = [];
 
@@ -27,19 +28,52 @@ export const SpeechProvider = ({ children }) => {
     reader.onloadend = async function () {
       const base64Audio = reader.result.split(",")[1];
       setLoading(true);
-      const data = await fetch(`${backendUrl}/sts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ audio: base64Audio }),
-      });
-      const response = (await data.json()).messages;
-      setMessages((messages) => [...messages, ...response]);
-      setLoading(false);
+
+      try {
+        const data = await fetch(`${backendUrl}/api/digital-human/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            audio_data: base64Audio,
+            type: "audio",
+            session_uuid: sessionUUID,
+          }),
+        });
+
+        if (!data.ok) {
+          throw new Error(`HTTP error! status: ${data.status}`);
+        }
+
+        const response = await data.json();
+
+        // Update session UUID jika berbeda
+        if (response.session_uuid !== sessionUUID) {
+          setSessionUUID(response.session_uuid);
+        }
+
+        setMessages((messages) => [...messages, ...response.messages]);
+      } catch (error) {
+        console.error("Error sending audio:", error);
+        // Tambahkan error message
+        setMessages((messages) => [
+          ...messages,
+          {
+            text: "Maaf, terjadi kesalahan saat memproses audio. Silakan coba lagi.",
+            facialExpression: "sad",
+            animation: "SadIdle",
+            audio: null,
+            lipsync: null,
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
     };
   };
 
+  // Setup MediaRecorder
   useEffect(() => {
     if (typeof window !== "undefined") {
       navigator.mediaDevices
@@ -64,38 +98,73 @@ export const SpeechProvider = ({ children }) => {
   }, []);
 
   const startRecording = () => {
-    if (mediaRecorder) {
+    if (mediaRecorder && !loading && !message) {
       mediaRecorder.start();
       setRecording(true);
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorder) {
+    if (mediaRecorder && recording) {
       mediaRecorder.stop();
       setRecording(false);
     }
   };
 
-  // TTS logic
+  // Text-to-Speech logic (komunikasi dengan sistem RAG)
   const tts = async (message) => {
+    if (loading || !message.trim()) return;
+
     setLoading(true);
-    const data = await fetch(`${backendUrl}/tts`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message }),
-    });
-    const response = (await data.json()).messages;
-    setMessages((messages) => [...messages, ...response]);
-    setLoading(false);
+
+    try {
+      const data = await fetch(`${backendUrl}/api/digital-human/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: message,
+          type: "text",
+          session_uuid: sessionUUID,
+        }),
+      });
+
+      if (!data.ok) {
+        throw new Error(`HTTP error! status: ${data.status}`);
+      }
+
+      const response = await data.json();
+
+      // Update session UUID jika berbeda
+      if (response.session_uuid !== sessionUUID) {
+        setSessionUUID(response.session_uuid);
+      }
+
+      setMessages((messages) => [...messages, ...response.messages]);
+    } catch (error) {
+      console.error("Error sending text:", error);
+      // Tambahkan error message
+      setMessages((messages) => [
+        ...messages,
+        {
+          text: "Maaf, terjadi kesalahan saat memproses pesan. Silakan coba lagi.",
+          facialExpression: "sad",
+          animation: "SadIdle",
+          audio: null,
+          lipsync: null,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onMessagePlayed = () => {
     setMessages((messages) => messages.slice(1));
   };
 
+  // Update current message when messages array changes
   useEffect(() => {
     if (messages.length > 0) {
       setMessage(messages[0]);
@@ -103,6 +172,13 @@ export const SpeechProvider = ({ children }) => {
       setMessage(null);
     }
   }, [messages]);
+
+  // Generate initial session UUID
+  useEffect(() => {
+    if (!sessionUUID) {
+      setSessionUUID(crypto.randomUUID());
+    }
+  }, []);
 
   return (
     <SpeechContext.Provider
@@ -114,6 +190,7 @@ export const SpeechProvider = ({ children }) => {
         message,
         onMessagePlayed,
         loading,
+        sessionUUID,
       }}
     >
       {children}
