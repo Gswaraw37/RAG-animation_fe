@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-const backendUrl = "http://localhost:5000";
+const backendUrl = "http://localhost:5001";
 
 const SpeechContext = createContext();
 
@@ -50,17 +50,14 @@ export const SpeechProvider = ({ children }) => {
         const response = await data.json();
         console.log("Audio response received:", response);
 
-        // Update session UUID jika berbeda
         if (response.session_uuid !== sessionUUID) {
           setSessionUUID(response.session_uuid);
         }
 
-        // Process response messages
         const processedMessages = processResponseMessages(response.messages);
         setMessages((messages) => [...messages, ...processedMessages]);
       } catch (error) {
         console.error("Error sending audio:", error);
-        // Tambahkan error message
         setMessages((messages) => [
           ...messages,
           {
@@ -77,7 +74,6 @@ export const SpeechProvider = ({ children }) => {
     };
   };
 
-  // Setup MediaRecorder
   useEffect(() => {
     if (typeof window !== "undefined") {
       navigator.mediaDevices
@@ -115,15 +111,12 @@ export const SpeechProvider = ({ children }) => {
     }
   };
 
-  // Process response messages untuk memastikan format yang benar
   const processResponseMessages = (responseMessages) => {
     return responseMessages.map((msg, index) => {
       console.log(`Processing message ${index}:`, msg);
 
-      // Validate audio data
       if (msg.audio) {
         try {
-          // Test if audio data is valid base64
           const audioBlob = base64ToBlob(msg.audio, "audio/mpeg");
           const audioUrl = URL.createObjectURL(audioBlob);
           console.log(`Audio URL created for message ${index}:`, audioUrl);
@@ -133,7 +126,6 @@ export const SpeechProvider = ({ children }) => {
         }
       }
 
-      // Validate lipsync data
       if (msg.lipsync && !msg.lipsync.mouthCues) {
         console.warn(`Invalid lipsync data in message ${index}:`, msg.lipsync);
         msg.lipsync = createFallbackLipsync();
@@ -149,7 +141,6 @@ export const SpeechProvider = ({ children }) => {
     });
   };
 
-  // Helper function untuk convert base64 ke blob
   const base64ToBlob = (base64, mimeType) => {
     const byteCharacters = atob(base64);
     const byteNumbers = new Array(byteCharacters.length);
@@ -160,7 +151,6 @@ export const SpeechProvider = ({ children }) => {
     return new Blob([byteArray], { type: mimeType });
   };
 
-  // Create fallback lipsync data
   const createFallbackLipsync = () => {
     return {
       metadata: {
@@ -178,7 +168,6 @@ export const SpeechProvider = ({ children }) => {
     };
   };
 
-  // Text-to-Speech logic (komunikasi dengan sistem RAG)
   const tts = async (message) => {
     if (loading || !message.trim()) return;
 
@@ -205,17 +194,14 @@ export const SpeechProvider = ({ children }) => {
       const response = await data.json();
       console.log("Text response received:", response);
 
-      // Update session UUID jika berbeda
       if (response.session_uuid !== sessionUUID) {
         setSessionUUID(response.session_uuid);
       }
 
-      // Process response messages
       const processedMessages = processResponseMessages(response.messages);
       setMessages((messages) => [...messages, ...processedMessages]);
     } catch (error) {
       console.error("Error sending text:", error);
-      // Tambahkan error message
       setMessages((messages) => [
         ...messages,
         {
@@ -236,7 +222,6 @@ export const SpeechProvider = ({ children }) => {
     setMessages((messages) => messages.slice(1));
   };
 
-  // Update current message when messages array changes
   useEffect(() => {
     if (messages.length > 0) {
       console.log("Setting current message:", messages[0]);
@@ -247,7 +232,6 @@ export const SpeechProvider = ({ children }) => {
     }
   }, [messages]);
 
-  // Generate initial session UUID
   useEffect(() => {
     if (!sessionUUID) {
       const newUUID = crypto.randomUUID();

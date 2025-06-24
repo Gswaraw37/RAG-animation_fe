@@ -30,7 +30,6 @@ const SpeechBubble = ({
     setIsTyping(true);
     setDisplayText("");
 
-    // Typewriter effect
     let i = 0;
     const timer = setInterval(() => {
       if (i < message.length) {
@@ -41,7 +40,7 @@ const SpeechBubble = ({
         setIsTyping(false);
         onTypingComplete();
       }
-    }, 50); // Adjust speed as needed
+    }, 50);
 
     return () => clearInterval(timer);
   }, [message, isVisible, onTypingComplete]);
@@ -59,9 +58,7 @@ const SpeechBubble = ({
         position === "right" ? "left-full ml-6" : "right-full mr-6"
       } top-1/2 transform -translate-y-1/2 ${className}`}
     >
-      {/* Speech bubble */}
       <div className="relative w-80 max-w-sm">
-        {/* Bubble content */}
         <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/30 min-h-[100px]">
           <div className="flex items-start gap-3">
             <MessageCircle className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
@@ -75,7 +72,6 @@ const SpeechBubble = ({
             </div>
           </div>
 
-          {/* Typing indicator */}
           {isTyping && (
             <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
               <div className="flex gap-1">
@@ -93,7 +89,6 @@ const SpeechBubble = ({
             </div>
           )}
 
-          {/* Progress indicator when not typing */}
           {!isTyping && displayText && (
             <div className="mt-3 text-xs text-gray-400 flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -102,7 +97,6 @@ const SpeechBubble = ({
           )}
         </div>
 
-        {/* Speech bubble tail */}
         <div
           className={`absolute top-1/2 transform -translate-y-1/2 ${
             position === "right" ? "-left-2" : "-right-2"
