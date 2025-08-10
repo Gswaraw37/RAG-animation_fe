@@ -1,5 +1,4 @@
 import { useRef, useState, useEffect } from "react";
-import { Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import { useSpeech } from "../hooks/useSpeech";
 import SpeechBubble from "./SpeechBubble";
 
